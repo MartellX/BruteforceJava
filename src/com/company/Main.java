@@ -7,6 +7,19 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
+class Time{
+    String time = String.format("%d min. %d sec. %d ms.",0 , 0, 0);
+    Time(long time){
+        this.time = String.format("%d min. %d sec. %d ms.",
+                time / (1000 * 60) , time % (1000 * 60) / 1000, time % 1000);
+    }
+
+    @Override
+    public String toString(){
+        return time;
+    }
+}
+
 class Brutforce extends Thread{
 
     char alph[]={ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
@@ -14,6 +27,7 @@ class Brutforce extends Thread{
     int wordLength = 5;
     int maxWords;
     public int percent;
+    public Time timeLeft = null;
     MessageDigest messageDigest;
     List<String> hashes;
 
@@ -28,11 +42,12 @@ class Brutforce extends Thread{
     @Override
     public void run(){
 
+        long start = System.currentTimeMillis();
+        double iStart = 0;
         for (int i = 0; i < maxWords; i++){
             if (hashes.isEmpty()){
                 break;
             }
-
             StringBuilder entry = new StringBuilder(wordLength);
             String stringSeqience = new BigInteger(Integer.toString(i)).toString(alph.length);
             char[] nextSequence = stringSeqience.toCharArray();
@@ -64,11 +79,18 @@ class Brutforce extends Thread{
                 System.out.println("\nНайден пароль к хэшу \"" + hash + "\": " + entry);
                 hashes.remove(hash.toString());
             }
+
             percent = (int)(((double)i / (double)maxWords) * 100);
             percent = percent - percent % 10;
-
+            if (i % 1000 == 0){
+                long end = System.currentTimeMillis();
+                double iEnd = i;
+                double velocity = (iEnd - iStart) / (end - start);
+                timeLeft = new Time((long) ((maxWords - i) / velocity));
+                iStart = i;
+                start = System.currentTimeMillis();
+            }
         }
-
     }
 }
 
@@ -85,6 +107,7 @@ public class Main {
         System.out.println("Ищем пароли");
         int predPercent = -1;
         do{
+            /*
             int percent = brutforce.percent;
 
             if (percent != predPercent){
@@ -94,11 +117,16 @@ public class Main {
             else{
                 System.out.print(".");
             }
+
+             */
+            if (brutforce.timeLeft != null) {
+                System.out.println("Примерно времени осталось: " + brutforce.timeLeft);
+            }
             try{
-                brutforce.join(500);
+                brutforce.join(2500);
             } catch (InterruptedException e) {}
         } while (brutforce.isAlive());
-        System.out.println("100%");
+        // System.out.println("100%");
         System.out.println("Поиск завершён");
 
     }
