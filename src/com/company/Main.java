@@ -22,19 +22,24 @@ class Time{
 
 class Brutforce extends Thread{
 
-    char alph[]={ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
-            's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+    List<Character> alph;
     int wordLength = 5;
     int maxWords;
     public int percent;
     public Time timeLeft = null;
     MessageDigest messageDigest;
     List<String> hashes;
+    int startingIteration = 1;
+    char[] workingArray;
 
-
-    Brutforce(List<String> hashes) throws NoSuchAlgorithmException {
+    Brutforce(List<Character> alph, String starting, List<String> hashes) throws NoSuchAlgorithmException {
         this.hashes = hashes;
-        maxWords = (int) Math.pow(alph.length, wordLength);
+        this.alph = alph;
+        maxWords = (int) Math.pow(alph.size(), starting.length());
+        workingArray = starting.toCharArray();
+        for (int i = 0; i < workingArray.length; i++){
+            startingIteration += (alph.indexOf(workingArray[i])) * Math.pow(alph.size(), wordLength - i - 1);
+        }
         messageDigest = MessageDigest.getInstance("SHA-256");
 
     }
@@ -43,29 +48,17 @@ class Brutforce extends Thread{
     public void run(){
 
         long start = System.currentTimeMillis();
-        double iStart = 0;
-        for (int i = 0; i < maxWords; i++){
+        double iStart = startingIteration;
+        for (int i = startingIteration; i <= (maxWords - startingIteration); i++){
             if (hashes.isEmpty()){
                 break;
             }
-            StringBuilder entry = new StringBuilder(wordLength);
-            String stringSeqience = new BigInteger(Integer.toString(i)).toString(alph.length);
-            char[] nextSequence = stringSeqience.toCharArray();
-            for(int j = 0; j < wordLength; j++){
-                if (j < nextSequence.length){
-                    BigInteger index = new BigInteger(Character.toString(nextSequence[nextSequence.length - j - 1]), alph.length);
-                    entry.append(alph[index.intValue()]);
-                }
-                else{
-                    entry.append(alph[0]);
-                }
-            }
-            entry.reverse();
 
+            String entry = new String(getCurrentSequence());
             messageDigest.reset();
 
             try {
-                messageDigest.update(entry.toString().getBytes("UTF-8"));
+                messageDigest.update(entry.getBytes("UTF-8"));
             } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
             }
@@ -76,13 +69,13 @@ class Brutforce extends Thread{
             }
 
             if(hashes.contains(hash.toString())){
-                System.out.println("\nНайден пароль к хэшу \"" + hash + "\": " + entry);
+                System.out.println("\nНайден пароль к хэшу \"" + hash + "\": " + entry.toString());
                 hashes.remove(hash.toString());
             }
 
             percent = (int)(((double)i / (double)maxWords) * 100);
             percent = percent - percent % 10;
-            if (i % 1000 == 0){
+            if (i % 10000 == 0){
                 long end = System.currentTimeMillis();
                 double iEnd = i;
                 double velocity = (iEnd - iStart) / (end - start);
@@ -92,33 +85,43 @@ class Brutforce extends Thread{
             }
         }
     }
+
+    char[] getCurrentSequence(){
+        if (workingArray[workingArray.length - 1] == alph.get(alph.size() - 1)){
+            int j = workingArray.length - 1;
+            workingArray[j] = alph.get(0);
+            while (workingArray[j - 1] == alph.get(alph.size() - 1) && (j-1) != 0){
+                workingArray[j - 1] = alph.get(0);
+                j--;
+            }
+            if (workingArray[j - 1] != alph.get(alph.size() - 1)){
+                workingArray[j - 1] = alph.get(alph.indexOf(workingArray[j - 1]) + 1);
+            }
+        }else{
+            workingArray[workingArray.length - 1] = alph.get(alph.indexOf(workingArray[workingArray.length - 1]) + 1);
+        }
+        return workingArray;
+    }
 }
 
 
 public class Main {
 
     public static void main(String[] args) throws NoSuchAlgorithmException {
+        String starting = "aaaaa";
+        List<Character> alph= List.of( 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
+                's', 't', 'u', 'v', 'w', 'x', 'y', 'z');
         List<String> search = new ArrayList<>(List.of("1115dd800feaacefdf481f1f9070374a2a81e27880f187396db67958b207cbad",
                 "3a7bd3e2360a3d29eea436fcfb7e44c735d117c42d1c1835420b6b9942dd4f1b",
                 "74e1bb62f8dabb8125a58852b63bdf6eaef667cb56ac7f7cdba6d7305c50a22f"));
 
-        Brutforce brutforce = new Brutforce(search);
+
+        Brutforce brutforce = new Brutforce(alph, starting, search);
         brutforce.start();
         System.out.println("Ищем пароли");
         int predPercent = -1;
         do{
-            /*
-            int percent = brutforce.percent;
 
-            if (percent != predPercent){
-                System.out.print(percent+ "%");
-                predPercent = percent;
-            }
-            else{
-                System.out.print(".");
-            }
-
-             */
             if (brutforce.timeLeft != null) {
                 System.out.println("Примерно времени осталось: " + brutforce.timeLeft);
             }
@@ -128,6 +131,8 @@ public class Main {
         } while (brutforce.isAlive());
         // System.out.println("100%");
         System.out.println("Поиск завершён");
+
+
 
     }
 }
